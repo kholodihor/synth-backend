@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import fs from 'fs';
 import multer from 'multer';
+import cloudinary from '../libs/cloudinary';
 
 const router = Router();
 
@@ -26,21 +27,33 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.post('/uploadavatar', upload.single('avatar'), (req, res) => {
-  res.json({
-    url: `/uploads/images/users/${req?.file?.originalname}`,
-  });
+router.post('/uploadavatar', async (req, res) => {
+  const { image } = req.body;
+  try {
+    const result = await cloudinary.uploader.upload(image, {
+      folder: 'users',
+    });
+    res.json({
+      url: result.secure_url,
+    });
+  } catch (error) {
+    console.error(error);
+  }
 });
 
-router.post(
-  '/uploadbandimage',
-  upload.single('band'),
-  (req, res) => {
-    res.json({
-      url: `/uploads/images/bands/${req?.file?.originalname}`,
+router.post('/uploadbandimage', async (req, res) => {
+  const { image } = req.body;
+  try {
+    const result = await cloudinary.uploader.upload(image, {
+      folder: 'bands',
     });
+    res.json({
+      url: result.secure_url,
+    });
+  } catch (error) {
+    console.error(error);
   }
-);
+});
 
 router.post('/uploadsong', upload.single('song'), (req, res) => {
   res.json({
