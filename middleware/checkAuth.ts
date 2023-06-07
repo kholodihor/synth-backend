@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 interface JwtPayload {
-  uid: string;
+  _id: string;
 }
 
 export const checkAuth = (req:Request, res:Response, next:NextFunction) => {
@@ -13,7 +13,7 @@ export const checkAuth = (req:Request, res:Response, next:NextFunction) => {
         token,
         process.env.JWT_SECRET as string
       ) as JwtPayload;
-      req.userId = decoded.uid;
+      req.userId = decoded._id;
       next();
     } catch (e) {
       return res.status(403).json({
