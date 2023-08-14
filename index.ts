@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
+import fileupload from 'express-fileupload'
 
 import userRoute from './routes/user';
 import bandRoute from './routes/bands';
@@ -15,12 +16,13 @@ dotenv.config();
 
 const app: Express = express();
 
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+app.use(bodyParser.json({ limit: '15mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '15mb' }));
 app.use(cookieParser());
 
 app.use(cors({origin:"*"}));
 
+app.use(fileupload({useTempFiles: true}))
 app.use('/uploads', express.static('uploads'));
 
 app.use('/api', userRoute);

@@ -55,11 +55,20 @@ router.post('/uploadbandimage', async (req, res) => {
   }
 });
 
-router.post('/uploadsong', upload.single('song'), (req, res) => {
-  res.json({
-    url: `/uploads/songs/${req?.file?.originalname}`,
-    fileName: req?.file?.originalname,
-  });
+router.post('/uploadsong', async (req, res) => {
+  const file = req?.files?.song;
+  try {
+    //@ts-ignore
+    const result = await cloudinary.uploader.upload(file.tempFilePath, {
+      folder: 'music',
+      resource_type: 'auto',
+    });
+    res.json({
+      url: result.secure_url,
+    });
+  } catch (error) {
+    console.error(error);
+  }
 });
 
 router.post('/uploadtopsong', upload.single('topsong'), (req, res) => {
