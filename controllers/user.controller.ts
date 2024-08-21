@@ -1,16 +1,16 @@
-import bcrypt from 'bcrypt';
-import { RequestHandler } from 'express';
-import UserModel from '../models/UserModel';
-import { generateToken } from '../utils/generateToken';
+import bcrypt from "bcrypt";
+import { RequestHandler } from "express";
+import UserModel from "../models/user.model";
+import { generateToken } from "../utils/generateToken";
 
-export const registerUser:RequestHandler = async (req, res) => {
+export const registerUser: RequestHandler = async (req, res) => {
   const { username, email, password } = req.body;
   try {
     const existingUser = await UserModel.findOne({ email });
     if (existingUser)
       return res
         .status(401)
-        .json({ error: 'User with this email already exists' });
+        .json({ error: "User with this email already exists" });
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const user = new UserModel({
@@ -27,24 +27,24 @@ export const registerUser:RequestHandler = async (req, res) => {
         token: generateToken(user._id),
       });
     } else {
-      res.status(401).json({ error: 'Can`t register user' });
+      res.status(401).json({ error: "Can`t register user" });
     }
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: "Fail to register a user"
+      message: "Fail to register a user",
     });
   }
 };
 
-export const loginUser:RequestHandler = async (req, res) => {
+export const loginUser: RequestHandler = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await UserModel.findOne({ email });
     if (!user)
       return res
         .status(404)
-        .json({ error: 'No registered user with the email' });
+        .json({ error: "No registered user with the email" });
     if (user && (await bcrypt.compare(password, user.password))) {
       const token = generateToken(user._id);
       res.json({
@@ -54,16 +54,16 @@ export const loginUser:RequestHandler = async (req, res) => {
         token,
       });
     } else {
-      res.status(401).json({ error: 'Incorrect Login or Pasword' });
+      res.status(401).json({ error: "Incorrect Login or Pasword" });
     }
   } catch (error) {
     res.status(500).json({
-      message: "Fail to login a user"
+      message: "Fail to login a user",
     });
   }
 };
 
-export const editUser:RequestHandler = async (req, res, next) => {
+export const editUser: RequestHandler = async (req, res, next) => {
   try {
     const { username, avatarUrl } = req.body;
     await UserModel.findOneAndUpdate(
@@ -77,17 +77,17 @@ export const editUser:RequestHandler = async (req, res, next) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: "Fail to edit a user"
+      message: "Fail to edit a user",
     });
   }
 };
 
-export const getUser:RequestHandler = async (req, res) => {
+export const getUser: RequestHandler = async (req, res) => {
   try {
     const user = await UserModel.findById(req.userId);
     if (!user) {
       return res.status(404).json({
-        message: 'User not found',
+        message: "User not found",
       });
     }
     res.json({
@@ -99,7 +99,7 @@ export const getUser:RequestHandler = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: "Fail to get a user"
+      message: "Fail to get a user",
     });
   }
 };

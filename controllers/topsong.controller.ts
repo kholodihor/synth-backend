@@ -1,7 +1,7 @@
-import { RequestHandler } from 'express';
-import TopSongModel from '../models/TopSongModel';
+import { RequestHandler } from "express";
+import TopSongModel from "../models/topsong.model";
 
-export const addTopSong:RequestHandler = async (req, res, next) => {
+export const addTopSong: RequestHandler = async (req, res, next) => {
   const { title, artist, song } = req.body;
   try {
     const newSong = new TopSongModel({
@@ -19,9 +19,9 @@ export const addTopSong:RequestHandler = async (req, res, next) => {
   }
 };
 
-export const getTopSongs:RequestHandler = async (req, res, next) => {
+export const getTopSongs: RequestHandler = async (req, res, next) => {
   try {
-    const songs = await TopSongModel.find()
+    const songs = await TopSongModel.find();
     return res.json(songs);
   } catch (error) {
     console.log(error);

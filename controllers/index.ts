@@ -1,5 +1,5 @@
-export * as UserController from './UserController';
-export * as BandController from './BandController';
-export * as VideoController from './VideoController';
-export * as SongController from './SongController';
-export * as TopSongController from './TopSongController';
+export * as UserController from "./user.controller";
+export * as BandController from "./band.controller";
+export * as VideoController from "./video.controller";
+export * as SongController from "./song.controller";
+export * as TopSongController from "./topsong.controller";

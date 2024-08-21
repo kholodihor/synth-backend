@@ -1,7 +1,7 @@
-import { RequestHandler } from 'express';
-import SongModel from '../models/SongModel';
+import { RequestHandler } from "express";
+import SongModel from "../models/song.model";
 
-export const addSong:RequestHandler = async (req, res) => {
+export const addSong: RequestHandler = async (req, res) => {
   const { title, artist, song } = req.body;
   try {
     const newSong = new SongModel({
@@ -20,9 +20,9 @@ export const addSong:RequestHandler = async (req, res) => {
   }
 };
 
-export const getSongsByUser:RequestHandler = async (req, res) => {
+export const getSongsByUser: RequestHandler = async (req, res) => {
   try {
-    const songs = await SongModel.find({ user: req.userId })
+    const songs = await SongModel.find({ user: req.userId });
     return res.json(songs);
   } catch (error) {
     console.log(error);
@@ -32,11 +32,11 @@ export const getSongsByUser:RequestHandler = async (req, res) => {
   }
 };
 
-export const deleteSong:RequestHandler = async (req, res) => {
+export const deleteSong: RequestHandler = async (req, res) => {
   try {
     const songId = req.params.id;
     await SongModel.findOneAndDelete({ _id: songId });
-    res.status(200).json('Song deleted');
+    res.status(200).json("Song deleted");
   } catch (error) {
     console.log(error);
     res.status(500).json({

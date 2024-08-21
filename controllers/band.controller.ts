@@ -1,5 +1,5 @@
-import { RequestHandler } from 'express';
-import BandModel from '../models/BandModel';
+import { RequestHandler } from "express";
+import BandModel from "../models/band.model";
 
 type Params = {};
 type ResBody = {};
@@ -24,7 +24,7 @@ export const createBand: RequestHandler = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: 'Unable to create Band',
+      message: "Unable to create Band",
     });
   }
 };
@@ -32,14 +32,14 @@ export const createBand: RequestHandler = async (req, res) => {
 export const getAllBands: RequestHandler = async (req, res) => {
   try {
     const bands = await BandModel.find()
-      .sort({ createdAt: 'desc' })
-      .populate('user')
+      .sort({ createdAt: "desc" })
+      .populate("user")
       .exec();
     res.status(200).json(bands);
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: 'Can`t get bands',
+      message: "Can`t get bands",
     });
   }
 };
@@ -60,16 +60,16 @@ export const getAllBandsPaginate: RequestHandler<
   }
   try {
     const bands = await BandModel.find()
-      .sort({ createdAt: 'desc' })
+      .sort({ createdAt: "desc" })
       .skip(skip)
       .limit(bandsPerPage)
-      .populate('user')
+      .populate("user")
       .exec();
     res.status(200).json(bands);
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: 'Can`t get bands',
+      message: "Can`t get bands",
     });
   }
 };
@@ -82,7 +82,7 @@ export const getOneBand: RequestHandler = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: 'Can`t get Band',
+      message: "Can`t get Band",
     });
   }
 };
@@ -90,13 +90,13 @@ export const getOneBand: RequestHandler = async (req, res) => {
 export const getBandsByUser: RequestHandler = async (req, res) => {
   try {
     const bands = await BandModel.find({ user: req.userId }).sort({
-      createdAt: 'desc',
+      createdAt: "desc",
     });
     res.json(bands);
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: 'Can`t get Band',
+      message: "Can`t get Band",
     });
   }
 };
@@ -119,7 +119,7 @@ export const editBand: RequestHandler = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: 'Fail to edit Band',
+      message: "Fail to edit Band",
     });
   }
 };
@@ -128,11 +128,11 @@ export const deleteBand: RequestHandler = async (req, res) => {
   try {
     const bandId = req.params.id;
     await BandModel.findOneAndDelete({ _id: bandId });
-    res.status(200).json('Band deleted');
+    res.status(200).json("Band deleted");
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: 'Fail to delete Band',
+      message: "Fail to delete Band",
     });
   }
 };
