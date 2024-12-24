@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const controllers_1 = require("../controllers");
+const controllers_2 = require("../controllers");
+const checkAuth_1 = require("../middleware/checkAuth");
+const songValidation_1 = require("../validations/SongValidation/songValidation");
+const router = (0, express_1.Router)();
+router.post('/songs', checkAuth_1.checkAuth, songValidation_1.addSongValidation, controllers_1.SongController.addSong);
+router.get('/:id/songs', checkAuth_1.checkAuth, controllers_1.SongController.getSongsByUser);
+router.delete('/songs/:id', checkAuth_1.checkAuth, controllers_1.SongController.deleteSong);
+router.post('/topsongs', controllers_2.TopSongController.addTopSong);
+router.get('/topsongs', controllers_2.TopSongController.getTopSongs);
+exports.default = router;

@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const controllers_1 = require("../controllers");
+const checkAuth_1 = require("../middleware/checkAuth");
+const bandValidation_1 = require("../validations/BandValidation/bandValidation");
+const router = (0, express_1.Router)();
+router.get('/bands', controllers_1.BandController.getAllBands);
+router.get('/bands-paginate', controllers_1.BandController.getAllBandsPaginate);
+router.get('/bands/:id', controllers_1.BandController.getOneBand);
+router.get('/user/bands', checkAuth_1.checkAuth, controllers_1.BandController.getBandsByUser);
+router.patch('/bands/:id', checkAuth_1.checkAuth, controllers_1.BandController.editBand);
+router.delete('/bands/:id', checkAuth_1.checkAuth, controllers_1.BandController.deleteBand);
+router.post('/bands', checkAuth_1.checkAuth, bandValidation_1.createBandValidation, controllers_1.BandController.createBand);
+exports.default = router;

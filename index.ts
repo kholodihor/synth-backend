@@ -35,7 +35,7 @@ mongoose.set("strictQuery", false);
 mongoose
   .connect(process.env.MONGODB_URI as string, {})
   .then(() =>
-    app.listen(process.env.PORT || 5000, () => {
+    app.listen(process.env.PORT || 4000, () => {
       console.log("Server and Database are OK");
     })
   )
