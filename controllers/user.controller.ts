@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import { RequestHandler } from "express";
 import UserModel from "../models/user.model";
 import { generateToken } from "../utils/generateToken";
+import { RedisService } from "../utils/redis";
 
 export const registerUser: RequestHandler = async (req, res) => {
   const { username, email, password } = req.body;
@@ -47,6 +48,10 @@ export const loginUser: RequestHandler = async (req, res) => {
         .json({ error: "No registered user with the email" });
     if (user && (await bcrypt.compare(password, user.password))) {
       const token = generateToken(user._id);
+
+      // Cache user data on login
+      await RedisService.setWithTTL(`user:${user._id}`, JSON.stringify(user));
+
       res.json({
         _id: user._id,
         username: user.username,
@@ -54,42 +59,68 @@ export const loginUser: RequestHandler = async (req, res) => {
         token,
       });
     } else {
-      res.status(401).json({ error: "Incorrect Login or Pasword" });
+      res.status(401).json({ error: "Incorrect Login or Password" });
     }
   } catch (error) {
     res.status(500).json({
-      message: "Fail to login a user",
+      message: "Failed to login user",
     });
   }
 };
 
-export const editUser: RequestHandler = async (req, res, next) => {
+export const editUser: RequestHandler = async (req, res) => {
   try {
-    const { username, avatarUrl } = req.body;
-    await UserModel.findOneAndUpdate(
-      { _id: req.userId },
+    const user = await UserModel.findByIdAndUpdate(
+      req.userId,
       {
-        username,
-        avatarUrl,
-      }
+        $set: req.body,
+      },
+      { new: true }
     );
-    res.status(200).json({ message: `User ${username} Updated` });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    // Update cache after user edit
+    await RedisService.setWithTTL(`user:${req.userId}`, JSON.stringify(user));
+
+    res.json(user);
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: "Fail to edit a user",
+      message: "Failed to update user",
     });
   }
 };
 
 export const getUser: RequestHandler = async (req, res) => {
   try {
+    // Try to get user from cache first
+    const cachedUser = await RedisService.get(`user:${req.userId}`);
+    if (cachedUser) {
+      const user = JSON.parse(cachedUser);
+      return res.json({
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+      });
+    }
+
+    // If not in cache, get from database
     const user = await UserModel.findById(req.userId);
     if (!user) {
       return res.status(404).json({
         message: "User not found",
       });
     }
+
+    // Cache the user data
+    await RedisService.setWithTTL(`user:${req.userId}`, JSON.stringify(user));
+
     res.json({
       _id: user._id,
       username: user.username,
@@ -99,7 +130,7 @@ export const getUser: RequestHandler = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({
-      message: "Fail to get a user",
+      message: "Failed to get user",
     });
   }
 };
