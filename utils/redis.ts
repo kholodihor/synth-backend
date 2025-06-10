@@ -16,10 +16,7 @@ export class RedisService {
         throw new Error('Redis URL not configured');
       }
       
-      // Use the Upstash Redis URL format with token authentication
-      const url = 'redis://default:ATFVAAIjcDE1ODkzM2E0MjI4ZmU0MWE0OGY5OGIyYWI3OWEyZTdhOXAxMA@obliging-swift-12629.upstash.io:6379';
-      
-      RedisService.instance = new Redis(url, {
+      RedisService.instance = new Redis(redisUrl, {
         tls: { rejectUnauthorized: false },
         retryStrategy: (times) => {
           const delay = Math.min(times * 50, 2000);
