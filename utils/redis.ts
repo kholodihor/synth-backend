@@ -10,12 +10,26 @@ export class RedisService {
 
   static getInstance(): Redis {
     if (!RedisService.instance) {
+      // Extract URL and token from environment variable
       const redisUrl = process.env.REDIS_URL;
       if (!redisUrl) {
         throw new Error('Redis URL not configured');
       }
-
-      RedisService.instance = new Redis(redisUrl);
+      
+      // Use the Upstash Redis URL format with token authentication
+      const url = 'redis://default:ATFVAAIjcDE1ODkzM2E0MjI4ZmU0MWE0OGY5OGIyYWI3OWEyZTdhOXAxMA@obliging-swift-12629.upstash.io:6379';
+      
+      RedisService.instance = new Redis(url, {
+        tls: { rejectUnauthorized: false },
+        retryStrategy: (times) => {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        },
+        maxRetriesPerRequest: 5,
+        enableReadyCheck: false,
+        connectionName: 'synth-backend',
+        reconnectOnError: () => true
+      });
 
       RedisService.instance.on('connect', () => {
         console.log('Redis connected successfully');

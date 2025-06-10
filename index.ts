@@ -20,7 +20,28 @@ app.use(bodyParser.json({ limit: "15mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "15mb" }));
 app.use(cookieParser());
 
-app.use(cors({ origin: "*" }));
+// Configure CORS with specific options
+const allowedOrigins = ['http://localhost:5173']; // Add your frontend URL here
+
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Enable preflight for all routes
 
 app.use(fileupload({ useTempFiles: true }));
 app.use("/uploads", express.static("uploads"));
