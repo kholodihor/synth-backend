@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import fs from 'fs';
 import multer from 'multer';
-import cloudinary from '../libs/cloudinary';
+import * as UploadEffectController from '../controllers/upload.effect.controller';
 
 const router = Router();
 
@@ -27,50 +27,19 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.post('/uploadavatar', async (req, res) => {
-  const { image } = req.body;
-  try {
-    const result = await cloudinary.uploader.upload(image, {
-      folder: 'users',
-    });
-    res.json({
-      url: result.secure_url,
-    });
-  } catch (error) {
-    console.error(error);
-  }
-});
+// Import validation middleware
+import {
+  uploadAvatarValidation,
+  uploadBandImageValidation
+} from '../validations/UploadValidation/uploadValidation';
 
-router.post('/uploadbandimage', async (req, res) => {
-  const { image } = req.body;
-  try {
-    const result = await cloudinary.uploader.upload(image, {
-      folder: 'bands',
-    });
-    res.json({
-      url: result.secure_url,
-    });
-  } catch (error) {
-    console.error(error);
-  }
-});
+// Use Effect-based controllers for uploads with validation
+router.post('/uploadavatar', uploadAvatarValidation, UploadEffectController.uploadAvatar);
+router.post('/uploadbandimage', uploadBandImageValidation, UploadEffectController.uploadBandImage);
+// For song uploads, we still use multer since it's a file upload
+router.post('/uploadsong', upload.single('song'), UploadEffectController.uploadSong);
 
-router.post('/uploadsong', async (req, res) => {
-  const file = req?.files?.song;
-  try {
-    //@ts-ignore
-    const result = await cloudinary.uploader.upload(file.tempFilePath, {
-      folder: 'music',
-      resource_type: 'auto',
-    });
-    res.json({
-      url: result.secure_url,
-    });
-  } catch (error) {
-    console.error(error);
-  }
-});
-
+// Keep the original implementation for top song upload as it uses local storage
 router.post('/uploadtopsong', upload.single('topsong'), (req, res) => {
   res.json({
     url: `/uploads/songs/topsongs/${req?.file?.originalname}`,

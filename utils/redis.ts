@@ -46,7 +46,8 @@ export class RedisService {
 
   static async setWithTTL(key: string, value: any, ttl: number = CACHE_TTL): Promise<void> {
     try {
-      await this.getInstance().setex(key, ttl, JSON.stringify(value));
+      const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+      await this.getInstance().setex(key, ttl, stringValue);
     } catch (error) {
       console.error('Redis set error:', error);
     }
@@ -55,7 +56,16 @@ export class RedisService {
   static async get(key: string): Promise<any | null> {
     try {
       const value = await this.getInstance().get(key);
-      return value ? JSON.parse(value) : null;
+      if (!value) return null;
+      
+      try {
+        // Try to parse as JSON
+        return JSON.parse(value);
+      } catch (e) {
+        // If parsing fails, return the raw value
+        console.log(`Failed to parse Redis value for key ${key}, returning raw value`);
+        return value;
+      }
     } catch (error) {
       console.error('Redis get error:', error);
       return null;

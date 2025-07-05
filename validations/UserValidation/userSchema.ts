@@ -54,7 +54,7 @@ export const userSchema = {
       }),
     avatarUrl: Joi.string()
       .allow('')
-      .pattern(/\.(jpg|jpeg|png|gif)$/i)
+      .pattern(/\.(jpg|jpeg|png|webp)$/i)
       .messages({
         'string.pattern.base': 'Avatar URL must end with a valid image extension (.jpg, .jpeg, .png, or .gif)'
       })
