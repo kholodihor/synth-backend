@@ -5,10 +5,8 @@ export const userSchema = {
     username: Joi.string()
       .min(3)
       .max(30)
-      .pattern(/^[a-zA-Z0-9_-]+$/)
       .required()
       .messages({
-        'string.pattern.base': 'Username can only contain letters, numbers, underscores and dashes',
         'string.min': 'Username must be at least 3 characters long',
         'string.max': 'Username cannot exceed 30 characters'
       }),
@@ -20,10 +18,8 @@ export const userSchema = {
       }),
     password: Joi.string()
       .min(6)
-      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/)
       .required()
       .messages({
-        'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
         'string.min': 'Password must be at least 6 characters long'
       })
   }),
@@ -46,9 +42,7 @@ export const userSchema = {
     username: Joi.string()
       .min(3)
       .max(30)
-      .pattern(/^[a-zA-Z0-9_-]+$/)
       .messages({
-        'string.pattern.base': 'Username can only contain letters, numbers, underscores and dashes',
         'string.min': 'Username must be at least 3 characters long',
         'string.max': 'Username cannot exceed 30 characters'
       }),
