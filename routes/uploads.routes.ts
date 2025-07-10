@@ -1,23 +1,36 @@
 import { Router } from 'express';
 import fs from 'fs';
 import multer from 'multer';
-import * as UploadEffectController from '../controllers/upload.effect.controller';
+import * as UploadsController from '../controllers/uploads.controller';
 
 const router = Router();
 
+// Create directories if they don't exist
+const createDirectoryIfNotExists = (path: string) => {
+  if (!fs.existsSync(path)) {
+    fs.mkdirSync(path, { recursive: true });
+  }
+};
+
+// Configure multer storage for local file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (!fs.existsSync('uploads')) {
-      fs.mkdirSync('uploads');
-    }
+    createDirectoryIfNotExists('uploads');
+    
     if (file.fieldname === 'avatar') {
+      createDirectoryIfNotExists('uploads/images/users');
       cb(null, 'uploads/images/users');
     } else if (file.fieldname === 'band') {
+      createDirectoryIfNotExists('uploads/images/bands');
       cb(null, 'uploads/images/bands');
     } else if (file.fieldname === 'song') {
+      createDirectoryIfNotExists('uploads/songs');
       cb(null, 'uploads/songs');
     } else if (file.fieldname === 'topsong') {
+      createDirectoryIfNotExists('uploads/songs/topsongs');
       cb(null, 'uploads/songs/topsongs');
+    } else {
+      cb(new Error(`Unsupported field name: ${file.fieldname}`), '');
     }
   },
   filename: (_, file, cb) => {
@@ -27,24 +40,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Import validation middleware
-import {
-  uploadAvatarValidation,
-  uploadBandImageValidation
-} from '../validations/UploadValidation/uploadValidation';
-
-// Use Effect-based controllers for uploads with validation
-router.post('/uploadavatar', uploadAvatarValidation, UploadEffectController.uploadAvatar);
-router.post('/uploadbandimage', uploadBandImageValidation, UploadEffectController.uploadBandImage);
-// For song uploads, we still use multer since it's a file upload
-router.post('/uploadsong', upload.single('song'), UploadEffectController.uploadSong);
-
-// Keep the original implementation for top song upload as it uses local storage
-router.post('/uploadtopsong', upload.single('topsong'), (req, res) => {
-  res.json({
-    url: `/uploads/songs/topsongs/${req?.file?.originalname}`,
-    fileName: req?.file?.originalname,
-  });
-});
+// Define routes with controller methods
+router.post('/uploadavatar', UploadsController.uploadAvatar);
+router.post('/uploadbandimage', UploadsController.uploadBandImage);
+router.post('/uploadsong', UploadsController.uploadSong);
+router.post('/uploadtopsong', upload.single('topsong'), UploadsController.uploadTopSong);
 
 export default router;

@@ -1,20 +1,13 @@
+import { RequestHandler } from 'express';
 import { userSchema } from './userSchema';
-import { validationMiddleware } from '../validator';
+import validator from '../validator';
 
-/**
- * Validation middleware for user registration
- * Validates username, email, and password according to schema rules
- */
-export const registerUserValidation = validationMiddleware(userSchema.registerUser);
-
-/**
- * Validation middleware for user login
- * Validates email and password according to schema rules
- */
-export const loginUserValidation = validationMiddleware(userSchema.loginUser);
-
-/**
- * Validation middleware for user profile editing
- * Validates username and avatarUrl according to schema rules
- */
-export const editUserValidation = validationMiddleware(userSchema.editUser);
+export const registerUserValidation: RequestHandler = (req, res, next) => {
+  validator(userSchema.registerUser, req.body, next);
+};
+export const loginUserValidation: RequestHandler = (req, res, next) => {
+  validator(userSchema.loginUser, req.body, next);
+};
+export const editUserValidation: RequestHandler = (req, res, next) => {
+  validator(userSchema.editUser, req.body, next);
+};

@@ -12,7 +12,7 @@ export const bandSchema = {
         'string.empty': 'Band title is required'
       }),
     description: Joi.string()
-      .max(4000)
+      .max(1000)
       .allow('')
       .messages({
         'string.max': 'Description cannot exceed 1000 characters'
@@ -27,7 +27,7 @@ export const bandSchema = {
       .allow('')
       .pattern(/\.(jpg|jpeg|png|webp)$/i)
       .messages({
-        'string.pattern.base': 'Image URL must end with a valid image extension (.jpg, .jpeg, .png, or .gif)'
+        'string.pattern.base': 'Image URL must end with a valid image extension (.jpg, .jpeg, .png, or .webp)'
       })
   })
 };
