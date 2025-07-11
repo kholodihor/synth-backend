@@ -1,4 +1,4 @@
-export * as UserController from "./user.controller";
+export * as UserController from "../effect/user.controller";
 export * as BandController from "../effect/band.controller";
 export * as VideoController from "../effect/video.controller";
 export * as SongController from "../effect/song.controller";
