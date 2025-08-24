@@ -11,6 +11,7 @@ import bandRoute from "./routes/bands.routes";
 import songRoute from "./routes/songs.routes";
 import videoRoute from "./routes/video.routes";
 import uploadsRoute from "./routes/uploads.routes";
+import musicRoute from "./routes/music.routes";
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use("/api", bandRoute);
 app.use("/api", songRoute);
 app.use("/api", videoRoute);
 app.use("/api", uploadsRoute);
+app.use("/api/music", musicRoute);
 
 mongoose.set("strictQuery", false);
 mongoose
