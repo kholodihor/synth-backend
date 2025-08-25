@@ -47,6 +47,11 @@ app.options('*', cors(corsOptions)); // Enable preflight for all routes
 app.use(fileupload({ useTempFiles: true }));
 app.use("/uploads", express.static("uploads"));
 
+// Health check / root route so Fly's proxy and browsers get a 200 OK
+app.get('/', (_req, res) => {
+  res.status(200).send('OK');
+});
+
 app.use("/api", userRoute);
 app.use("/api", bandRoute);
 app.use("/api", songRoute);
@@ -55,8 +60,11 @@ app.use("/api", uploadsRoute);
 app.use("/api/music", musicRoute);
 
 mongoose.set("strictQuery", false);
+// Support both env var names for Mongo connection
+const mongoUri = (process.env.MONGODB_URI || process.env.MONGO_URI) as string
+
 mongoose
-  .connect(process.env.MONGODB_URI as string, {})
+  .connect(mongoUri, {})
   .then(() =>
     app.listen(process.env.PORT || 4000, () => {
       console.log("Server and Database are OK");
