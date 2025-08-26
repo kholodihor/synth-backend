@@ -37,7 +37,7 @@ export const generateMusic = inngest.createFunction(
       }
 
       await step.run("log:start", async () => {
-        console.log("[inngest] generateMusic starting", { jobId, kind });
+        console.log("[inngest] generateMusic starting on inngest", { jobId, kind });
       });
 
       const data = await step.run("call-modal", async () => {
