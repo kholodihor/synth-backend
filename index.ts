@@ -12,10 +12,15 @@ import songRoute from "./routes/songs.routes";
 import videoRoute from "./routes/video.routes";
 import uploadsRoute from "./routes/uploads.routes";
 import musicRoute from "./routes/music.routes";
+import { inngestHandler } from "./inngest/handler";
+import jobsRoutes from "./routes/jobs.routes";
 
 dotenv.config();
 
 const app: Express = express();
+
+// Mount Inngest BEFORE any body parsers to avoid interfering with signature verification
+app.use("/api/inngest", express.raw({ type: "*/*" }), inngestHandler);
 
 app.use(bodyParser.json({ limit: "15mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "15mb" }));
@@ -51,6 +56,9 @@ app.use("/uploads", express.static("uploads"));
 app.get('/', (_req, res) => {
   res.status(200).send('OK');
 });
+
+// Jobs API
+app.use("/api/jobs", jobsRoutes);
 
 app.use("/api", userRoute);
 app.use("/api", bandRoute);

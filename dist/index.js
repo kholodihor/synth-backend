@@ -16,6 +16,8 @@ const songs_routes_1 = __importDefault(require("./routes/songs.routes"));
 const video_routes_1 = __importDefault(require("./routes/video.routes"));
 const uploads_routes_1 = __importDefault(require("./routes/uploads.routes"));
 const music_routes_1 = __importDefault(require("./routes/music.routes"));
+const handler_1 = require("./inngest/handler");
+const jobs_routes_1 = __importDefault(require("./routes/jobs.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use(body_parser_1.default.json({ limit: "15mb" }));
@@ -47,6 +49,9 @@ app.use("/uploads", express_1.default.static("uploads"));
 app.get('/', (_req, res) => {
     res.status(200).send('OK');
 });
+// Inngest functions endpoint and Jobs API
+app.use("/api/inngest", handler_1.inngestHandler);
+app.use("/api/jobs", jobs_routes_1.default);
 app.use("/api", user_routes_1.default);
 app.use("/api", bands_routes_1.default);
 app.use("/api", songs_routes_1.default);

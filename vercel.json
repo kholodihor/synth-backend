@@ -6,12 +6,11 @@
       "use": "@vercel/node"
     }
   ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/"
+  "functions": {
+    "api/inngest.ts": {
+      "maxDuration": 300
     }
-  ],
+  },
   "headers": [
     {
       "source": "/api/(.*)",
@@ -24,4 +23,3 @@
     }
   ]
 }
-
