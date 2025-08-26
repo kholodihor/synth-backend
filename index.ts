@@ -20,7 +20,7 @@ dotenv.config();
 const app: Express = express();
 
 // Mount Inngest BEFORE any body parsers to avoid interfering with signature verification
-app.use("/api/inngest", express.raw({ type: "*/*" }), inngestHandler);
+app.use("/api/inngest", inngestHandler);
 
 app.use(bodyParser.json({ limit: "15mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "15mb" }));
