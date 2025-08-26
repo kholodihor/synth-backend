@@ -1,10 +1,17 @@
 {
   "version": 2,
-  "functions": {
-    "api/inngest.ts": {
-      "maxDuration": 300
+  "builds": [
+    {
+      "src": "./index.ts",
+      "use": "@vercel/node"
     }
-  },
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
