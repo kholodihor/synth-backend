@@ -2,7 +2,6 @@ import express, { Express } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import fileupload from "express-fileupload";
 
@@ -19,11 +18,12 @@ dotenv.config();
 
 const app: Express = express();
 
-// Mount Inngest BEFORE any body parsers to avoid interfering with signature verification
-app.use("/api/inngest", inngestHandler);
+// Important: ensure you add JSON middleware to process incoming JSON POST payloads.
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
-app.use(bodyParser.json({ limit: "15mb" }));
-app.use(bodyParser.urlencoded({ extended: true, limit: "15mb" }));
+// Set up the "/api/inngest" routes with the serve handler
+app.use("/api/inngest", inngestHandler);
 app.use(cookieParser());
 
 // Configure CORS with specific options
