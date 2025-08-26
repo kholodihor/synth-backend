@@ -6,4 +6,5 @@ import { generateMusic } from "./functions/generateMusic";
 export const inngestHandler = serve({
   client: inngest,
   functions: [generateMusic],
+  streaming: false, // Disable streaming to ensure immediate responses
 });
