@@ -6,7 +6,16 @@
       "use": "@vercel/node"
     }
   ],
+  "functions": {
+    "api/inngest.ts": {
+      "maxDuration": 300
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/inngest",
+      "destination": "/api/inngest"
+    },
     {
       "source": "/(.*)",
       "destination": "/"

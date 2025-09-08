@@ -11,7 +11,6 @@ import songRoute from "./routes/songs.routes";
 import videoRoute from "./routes/video.routes";
 import uploadsRoute from "./routes/uploads.routes";
 import musicRoute from "./routes/music.routes";
-import { inngestHandler } from "./inngest/handler";
 import jobsRoutes from "./routes/jobs.routes";
 
 dotenv.config();
@@ -21,10 +20,8 @@ const app: Express = express();
 // Important: ensure you add JSON middleware to process incoming JSON POST payloads.
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
-
-// Set up the "/api/inngest" routes with the serve handler
-app.use("/api/inngest", inngestHandler);
 app.use(cookieParser());
+
 
 // Configure CORS with specific options
 const allowedOrigins = ['http://localhost:5173', 'https://synth-frontend-phi.vercel.app'];
@@ -75,7 +72,7 @@ mongoose
   .connect(mongoUri, {})
   .then(() =>
     app.listen(process.env.PORT || 4000, () => {
-      console.log("Server and Database are OK");
+      console.log(`Server and Database are OK. Server running on port ${process.env.PORT || 4000}`);
     })
   )
   .catch((err) => console.log("DB error", err));

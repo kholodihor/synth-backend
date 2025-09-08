@@ -31,44 +31,60 @@ export const generateMusic = inngest.createFunction(
     const redis = RedisService.getInstance();
     const key = `job:${jobId}`;
 
-    // Immediately set processing status and return - don't wait for Modal
+    // Immediately set processing status
     await step.run("set-processing-status", async () => {
       await redis.set(key, JSON.stringify({ status: "processing" }), "EX", 60 * 60);
-      console.log("[inngest] generateMusic queued", { jobId, kind });
+      console.log("[inngest] generateMusic started", { jobId, kind });
     });
 
     const endpoint = (ENDPOINTS as any)[kind];
     if (!endpoint) {
-      await redis.set(key, JSON.stringify({ status: "error", error: "Modal endpoint not configured" }), "EX", 60 * 60);
+      await step.run("set-error-status", async () => {
+        await redis.set(key, JSON.stringify({ status: "error", error: "Modal endpoint not configured" }), "EX", 60 * 60);
+      });
       return { ok: false, jobId, error: "Modal endpoint not configured" };
     }
 
-    // Schedule the actual processing as a separate background step
-    await step.run("schedule-processing", async () => {
-      // This runs in the background without blocking the webhook response
+    // Process the Modal API call with proper error handling
+    const result = await step.run("call-modal-api", async () => {
       try {
+        console.log("[inngest] Calling Modal API", { jobId, endpoint });
         const res = await axios.post(endpoint, payload, { 
-          timeout: 15 * 60 * 1000,
+          timeout: 15 * 60 * 1000, // 15 minutes - this is fine within Inngest
           headers: {
             'Content-Type': 'application/json'
           }
         });
         
-        await redis.set(key, JSON.stringify({ status: "done", result: res.data }), "EX", 60 * 60);
-        console.log("[inngest] generateMusic completed", { jobId });
-        return res.data;
+        console.log("[inngest] Modal API success", { jobId });
+        return { success: true, data: res.data };
       } catch (error: any) {
-        await redis.set(
-          key,
-          JSON.stringify({ status: "error", error: error?.message ?? "unknown" }),
-          "EX",
-          60 * 60
-        );
-        console.error("[inngest] generateMusic failed", { jobId, error: error.message });
-        throw error;
+        console.error("[inngest] Modal API failed", { jobId, error: error.message });
+        return { success: false, error: error?.message ?? "unknown" };
       }
     });
 
-    return { ok: true, jobId, status: "processing" };
+    // Update final status based on result
+    await step.run("set-final-status", async () => {
+      if (result.success) {
+        await redis.set(key, JSON.stringify({ status: "done", result: result.data }), "EX", 60 * 60);
+        console.log("[inngest] generateMusic completed", { jobId });
+      } else {
+        await redis.set(
+          key,
+          JSON.stringify({ status: "error", error: result.error }),
+          "EX",
+          60 * 60
+        );
+        console.error("[inngest] generateMusic failed", { jobId, error: result.error });
+      }
+    });
+
+    return { 
+      ok: result.success, 
+      jobId, 
+      status: result.success ? "done" : "error",
+      ...(result.success ? { result: result.data } : { error: result.error })
+    };
   }
 );
