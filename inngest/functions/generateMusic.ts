@@ -48,8 +48,55 @@ export const generateMusic = inngest.createFunction(
     // Process the Modal API call with proper error handling
     const result = await step.run("call-modal-api", async () => {
       try {
-        console.log("[inngest] Calling Modal API", { jobId, endpoint });
-        const res = await axios.post(endpoint, payload, { 
+        // Transform payload to match Modal API expectations
+        let modalPayload = {};
+        
+        switch (kind) {
+          case "fromDescription":
+            modalPayload = {
+              full_described_song: payload.description || payload.full_described_song || "",
+              audio_duration: payload.audio_duration || 180.0,
+              seed: payload.seed || -1,
+              guidance_scale: payload.guidance_scale || 15.0,
+              infer_step: payload.infer_step || 60,
+              instrumental: payload.instrumental || false
+            };
+            break;
+            
+          case "withLyrics":
+            modalPayload = {
+              prompt: payload.prompt || "",
+              lyrics: payload.lyrics || "",
+              audio_duration: payload.audio_duration || 180.0,
+              seed: payload.seed || -1,
+              guidance_scale: payload.guidance_scale || 15.0,
+              infer_step: payload.infer_step || 60,
+              instrumental: payload.instrumental || false
+            };
+            break;
+            
+          case "withDescribedLyrics":
+            modalPayload = {
+              prompt: payload.prompt || "",
+              described_lyrics: payload.described_lyrics || payload.description || "",
+              audio_duration: payload.audio_duration || 180.0,
+              seed: payload.seed || -1,
+              guidance_scale: payload.guidance_scale || 15.0,
+              infer_step: payload.infer_step || 60,
+              instrumental: payload.instrumental || false
+            };
+            break;
+            
+          case "generate":
+            modalPayload = {}; // No payload needed for basic generate
+            break;
+            
+          default:
+            modalPayload = payload;
+        }
+        
+        console.log("[inngest] Calling Modal API", { jobId, endpoint, kind, modalPayload });
+        const res = await axios.post(endpoint, modalPayload, { 
           timeout: 15 * 60 * 1000, // 15 minutes - this is fine within Inngest
           headers: {
             'Content-Type': 'application/json'
@@ -59,8 +106,8 @@ export const generateMusic = inngest.createFunction(
         console.log("[inngest] Modal API success", { jobId });
         return { success: true, data: res.data };
       } catch (error: any) {
-        console.error("[inngest] Modal API failed", { jobId, error: error.message });
-        return { success: false, error: error?.message ?? "unknown" };
+        console.error("[inngest] Modal API failed", { jobId, error: error.message, response: error.response?.data });
+        return { success: false, error: error?.message ?? "unknown", details: error.response?.data };
       }
     });
 
