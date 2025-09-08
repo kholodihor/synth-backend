@@ -2,47 +2,29 @@
   "version": 2,
   "builds": [
     {
-      "src": "index.ts",
+      "src": "./index.ts",
       "use": "@vercel/node"
-    },
-    {
-      "src": "api/inngest.ts",
-      "use": "@vercel/node",
-      "config": {
-        "maxDuration": 60
-      }
     }
   ],
-  "routes": [
+  "functions": {
+    "api/inngest.ts": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
     {
-      "src": "/api/inngest",
-      "dest": "/api/inngest.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.ts"
+      "source": "/(.*)",
+      "destination": "/"
     }
   ],
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
-        {
-          "key": "Access-Control-Allow-Credentials",
-          "value": "true"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
-        }
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version" }
       ]
     }
   ]
