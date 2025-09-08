@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/inngest.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
     }
   },
   "rewrites": [
