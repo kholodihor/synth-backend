@@ -1,18 +1,26 @@
 {
   "version": 2,
-  "functions": {
-    "api/inngest.ts": {
-      "maxDuration": 60
-    }
-  },
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/inngest",
-      "destination": "/api/inngest"
+      "src": "index.ts",
+      "use": "@vercel/node"
     },
     {
-      "source": "/(.*)",
-      "destination": "/"
+      "src": "api/inngest.ts",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 60
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/inngest",
+      "dest": "/api/inngest.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.ts"
     }
   ],
   "headers": [
