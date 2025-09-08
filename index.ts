@@ -12,6 +12,7 @@ import videoRoute from "./routes/video.routes";
 import uploadsRoute from "./routes/uploads.routes";
 import musicRoute from "./routes/music.routes";
 import jobsRoutes from "./routes/jobs.routes";
+import { inngestHandler } from "./inngest/handler";
 
 dotenv.config();
 
@@ -22,6 +23,8 @@ app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 app.use(cookieParser());
 
+// Set up the "/api/inngest" routes with the serve handler
+app.use("/api/inngest", inngestHandler);
 
 // Configure CORS with specific options
 const allowedOrigins = ['http://localhost:5173', 'https://synth-frontend-phi.vercel.app'];
