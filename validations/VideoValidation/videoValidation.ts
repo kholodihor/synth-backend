@@ -3,5 +3,5 @@ import { videoSchema } from './videoSchema';
 import validator from '../validator';
 
 export const addVideoValidation: RequestHandler = (req, res, next) => {
-  validator(videoSchema.addVideo, req.body, next);
+  validator(videoSchema.addVideo, req, res, next);
 };

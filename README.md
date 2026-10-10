@@ -56,6 +56,8 @@ A high-performance backend API for a music application, built with Node.js, Expr
    CLOUDINARY_API_KEY=your_cloudinary_api_key
    CLOUDINARY_API_SECRET=your_cloudinary_api_secret
    PORT=4000
+   # Optional: comma-separated list of allowed frontend origins
+   CORS_ORIGINS=http://localhost:5173,https://synth-frontend-phi.vercel.app
    ```
 
 ## 🚀 Running the Application

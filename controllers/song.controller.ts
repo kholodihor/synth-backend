@@ -5,23 +5,19 @@ import { RedisService } from "../utils/redis";
 export const addSong: RequestHandler = async (req, res) => {
   const { title, artist, song } = req.body;
   try {
-    const newSong = new SongModel({
+    const newSong = await new SongModel({
       title,
       artist,
       song,
       user: req.userId,
-    });
-    await newSong.save();
+    }).save();
 
-    // Invalidate user's songs cache
     await RedisService.delete(`user:${req.userId}:songs`);
 
-    res.status(200).json(newSong);
+    res.status(201).json(newSong);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Fail to add song",
-    });
+    console.error("Add song error:", error);
+    res.status(500).json({ success: false, message: "Failed to add song" });
   }
 };
 
@@ -29,45 +25,38 @@ export const getSongsByUser: RequestHandler = async (req, res) => {
   try {
     const cacheKey = `user:${req.userId}:songs`;
     const cachedSongs = await RedisService.get(cacheKey);
-
     if (cachedSongs) {
-      return res.json(JSON.parse(cachedSongs));
+      return res.json(cachedSongs);
     }
 
     const songs = await SongModel.find({ user: req.userId }).sort({
       createdAt: "desc",
     });
 
-    // Cache for 5 minutes
-    await RedisService.setWithTTL(cacheKey, JSON.stringify(songs), 300);
-
-    return res.json(songs);
+    await RedisService.setWithTTL(cacheKey, songs, 300);
+    res.json(songs);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Can`t get Song",
-    });
+    console.error("Get songs error:", error);
+    res.status(500).json({ success: false, message: "Failed to get songs" });
   }
 };
 
 export const deleteSong: RequestHandler = async (req, res) => {
   try {
-    const songId = req.params.id;
-    const song = await SongModel.findByIdAndDelete(songId);
+    const song = await SongModel.findById(req.params.id);
     if (!song) {
-      return res.status(404).json({
-        message: "Song not found",
-      });
+      return res.status(404).json({ success: false, message: "Song not found" });
+    }
+    if (song.user.toString() !== req.userId) {
+      return res.status(403).json({ success: false, message: "You can only delete your own songs" });
     }
 
-    // Invalidate user's songs cache
+    await SongModel.findByIdAndDelete(req.params.id);
     await RedisService.delete(`user:${req.userId}:songs`);
 
-    res.status(200).json("Song deleted");
+    res.json({ success: true, message: "Song deleted" });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Can`t delete song",
-    });
+    console.error("Delete song error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete song" });
   }
 };

@@ -4,37 +4,36 @@ import UserModel from "../models/user.model";
 import { generateToken } from "../utils/generateToken";
 import { RedisService } from "../utils/redis";
 
+const userCacheKey = (id: string) => `user:${id}`;
+
+const toUserResponse = (user: { _id: unknown; username: string; email: string; avatarUrl?: string }) => ({
+  _id: user._id,
+  username: user.username,
+  email: user.email,
+  avatarUrl: user.avatarUrl,
+});
+
 export const registerUser: RequestHandler = async (req, res) => {
   const { username, email, password } = req.body;
   try {
     const existingUser = await UserModel.findOne({ email });
-    if (existingUser)
+    if (existingUser) {
       return res
-        .status(401)
-        .json({ error: "User with this email already exists" });
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    const user = new UserModel({
-      username,
-      email,
-      password: hashedPassword,
-    });
-    await user.save();
-    if (user) {
-      res.status(201).json({
-        _id: user.id,
-        username: user.username,
-        email: user.email,
-        token: generateToken(user._id),
-      });
-    } else {
-      res.status(401).json({ error: "Can`t register user" });
+        .status(409)
+        .json({ success: false, message: "User with this email already exists" });
     }
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Fail to register a user",
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await new UserModel({ username, email, password: hashedPassword }).save();
+
+    res.status(201).json({
+      success: true,
+      ...toUserResponse(user),
+      token: generateToken(user._id),
     });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({ success: false, message: "Failed to register user" });
   }
 };
 
@@ -42,95 +41,74 @@ export const loginUser: RequestHandler = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await UserModel.findOne({ email });
-    if (!user)
+    if (!user) {
       return res
         .status(404)
-        .json({ error: "No registered user with the email" });
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const token = generateToken(user._id);
-
-      // Cache user data on login
-      await RedisService.setWithTTL(`user:${user._id}`, JSON.stringify(user));
-
-      res.json({
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        token,
-      });
-    } else {
-      res.status(401).json({ error: "Incorrect Login or Password" });
+        .json({ success: false, message: "No registered user with this email" });
     }
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to login user",
+
+    const passwordMatches = await bcrypt.compare(password, user.password);
+    if (!passwordMatches) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Incorrect login or password" });
+    }
+
+    await RedisService.setWithTTL(userCacheKey(user._id.toString()), user);
+
+    res.json({
+      success: true,
+      ...toUserResponse(user),
+      token: generateToken(user._id),
     });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ success: false, message: "Failed to login user" });
   }
 };
 
 export const editUser: RequestHandler = async (req, res) => {
   try {
+    // Whitelist editable fields — never $set req.body wholesale
+    const { username, avatarUrl } = req.body;
     const user = await UserModel.findByIdAndUpdate(
       req.userId,
-      {
-        $set: req.body,
-      },
-      { new: true }
+      { $set: { username, avatarUrl } },
+      { new: true, runValidators: true }
     );
 
     if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Update cache after user edit
-    await RedisService.setWithTTL(`user:${req.userId}`, JSON.stringify(user));
+    await RedisService.setWithTTL(userCacheKey(req.userId), user);
 
-    res.json(user);
+    res.json({ success: true, ...toUserResponse(user) });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Failed to update user",
-    });
+    console.error("Edit user error:", error);
+    res.status(500).json({ success: false, message: "Failed to update user" });
   }
 };
 
 export const getUser: RequestHandler = async (req, res) => {
   try {
-    // Try to get user from cache first
-    const cachedUser = await RedisService.get(`user:${req.userId}`);
+    const cachedUser = await RedisService.get<{ _id: string; username: string; email: string; avatarUrl?: string }>(
+      userCacheKey(req.userId)
+    );
     if (cachedUser) {
-      const user = JSON.parse(cachedUser);
-      return res.json({
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        avatarUrl: user.avatarUrl,
-      });
+      return res.json({ success: true, ...toUserResponse(cachedUser) });
     }
 
-    // If not in cache, get from database
     const user = await UserModel.findById(req.userId);
     if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Cache the user data
-    await RedisService.setWithTTL(`user:${req.userId}`, JSON.stringify(user));
+    await RedisService.setWithTTL(userCacheKey(req.userId), user);
 
-    res.json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
-    });
+    res.json({ success: true, ...toUserResponse(user) });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Failed to get user",
-    });
+    console.error("Get user error:", error);
+    res.status(500).json({ success: false, message: "Failed to get user" });
   }
 };

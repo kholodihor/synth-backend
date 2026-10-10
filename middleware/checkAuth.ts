@@ -5,24 +5,19 @@ interface JwtPayload {
   _id: string;
 }
 
-export const checkAuth = (req:Request, res:Response, next:NextFunction) => {
-  const token = (req.headers.authorization || '').replace(/Bearer\s?/, '');
-  if (token) {
-    try {
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET as string
-      ) as JwtPayload;
-      req.userId = decoded._id;
-      next();
-    } catch (e) {
-      return res.status(403).json({
-        message: 'Access denied',
-      });
-    }
-  } else {
-    return res.status(403).json({
-      message: 'Access denied',
-    });
+export const checkAuth = (req: Request, res: Response, next: NextFunction) => {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Authentication required' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
+    req.userId = decoded._id;
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 };

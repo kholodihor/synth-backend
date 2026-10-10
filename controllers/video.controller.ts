@@ -2,100 +2,80 @@ import { RequestHandler } from "express";
 import VideoModel from "../models/video.model";
 import { RedisService } from "../utils/redis";
 
-export const addVideo: RequestHandler = async (req, res, next) => {
+const invalidateVideoCaches = (userId: string) =>
+  Promise.all([
+    RedisService.delete("videos:all"),
+    RedisService.delete(`user:${userId}:videos`),
+  ]);
+
+export const addVideo: RequestHandler = async (req, res) => {
   try {
     const { title, url } = req.body;
-    const newVideo = new VideoModel({
-      title,
-      url,
-      user: req.userId,
-    });
-    await newVideo.save();
+    const video = await new VideoModel({ title, url, user: req.userId }).save();
 
-    // Invalidate caches
-    await Promise.all([
-      RedisService.delete("videos:all"),
-      RedisService.delete(`user:${req.userId}:videos`),
-    ]);
+    await invalidateVideoCaches(req.userId);
 
-    res.status(200).json(newVideo);
+    res.status(201).json({ success: true, video });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Fail to add a video",
-    });
+    console.error("Add video error:", error);
+    res.status(500).json({ success: false, message: "Failed to add video" });
   }
 };
 
-export const getVideosByUser: RequestHandler = async (req, res, next) => {
+export const getVideosByUser: RequestHandler = async (req, res) => {
   try {
     const cacheKey = `user:${req.userId}:videos`;
     const cachedVideos = await RedisService.get(cacheKey);
-
     if (cachedVideos) {
-      return res.json(JSON.parse(cachedVideos));
+      return res.json({ success: true, videos: cachedVideos });
     }
 
     const videos = await VideoModel.find({ user: req.userId }).sort({
       createdAt: "desc",
     });
 
-    // Cache for 5 minutes
-    await RedisService.setWithTTL(cacheKey, JSON.stringify(videos), 300);
-
-    res.json(videos);
+    await RedisService.setWithTTL(cacheKey, videos, 300);
+    res.json({ success: true, videos });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Fail to get videos by user",
-    });
+    console.error("Get user videos error:", error);
+    res.status(500).json({ success: false, message: "Failed to get videos" });
   }
 };
 
-export const getAllVideos: RequestHandler = async (req, res, next) => {
+export const getAllVideos: RequestHandler = async (req, res) => {
   try {
     const cacheKey = "videos:all";
     const cachedVideos = await RedisService.get(cacheKey);
-
     if (cachedVideos) {
-      return res.json(JSON.parse(cachedVideos));
+      return res.json({ success: true, videos: cachedVideos });
     }
 
     const videos = await VideoModel.find().sort({ createdAt: "desc" });
 
-    // Cache for 5 minutes
-    await RedisService.setWithTTL(cacheKey, JSON.stringify(videos), 300);
-
-    return res.json(videos);
+    await RedisService.setWithTTL(cacheKey, videos, 300);
+    res.json({ success: true, videos });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Fail to get videos",
-    });
+    console.error("Get videos error:", error);
+    res.status(500).json({ success: false, message: "Failed to get videos" });
   }
 };
 
 export const deleteVideo: RequestHandler = async (req, res) => {
   try {
-    const videoId = req.params.id;
-    const video = await VideoModel.findByIdAndDelete(videoId);
+    const video = await VideoModel.findById(req.params.id);
     if (!video) {
-      return res.status(404).json({
-        message: "Video not found",
-      });
+      return res.status(404).json({ success: false, message: "Video not found" });
+    }
+    if (video.user.toString() !== req.userId) {
+      return res.status(403).json({ success: false, message: "You can only delete your own videos" });
     }
 
-    // Invalidate caches
-    await Promise.all([
-      RedisService.delete("videos:all"),
-      RedisService.delete(`user:${req.userId}:videos`),
-    ]);
+    await VideoModel.findByIdAndDelete(req.params.id);
+    await invalidateVideoCaches(req.userId);
 
-    res.status(200).json("Video deleted");
+    res.json({ success: true, message: "Video deleted" });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Fail to delete videos",
-    });
+    console.error("Delete video error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete video" });
   }
 };

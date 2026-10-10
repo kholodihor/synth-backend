@@ -5,10 +5,10 @@ export const userSchema = {
     username: Joi.string()
       .min(3)
       .max(30)
-      .pattern(/^[a-zA-Z0-9_-]+$/)
+      .pattern(/^[\p{L}\p{N} _-]+$/u)
       .required()
       .messages({
-        'string.pattern.base': 'Username can only contain letters, numbers, underscores and dashes',
+        'string.pattern.base': 'Username can only contain letters, numbers, spaces, underscores and dashes',
         'string.min': 'Username must be at least 3 characters long',
         'string.max': 'Username cannot exceed 30 characters'
       }),
@@ -20,7 +20,7 @@ export const userSchema = {
       }),
     password: Joi.string()
       .min(6)
-      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/)
+      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/)
       .required()
       .messages({
         'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
@@ -46,17 +46,17 @@ export const userSchema = {
     username: Joi.string()
       .min(3)
       .max(30)
-      .pattern(/^[a-zA-Z0-9_-]+$/)
+      .pattern(/^[\p{L}\p{N} _-]+$/u)
       .messages({
-        'string.pattern.base': 'Username can only contain letters, numbers, underscores and dashes',
+        'string.pattern.base': 'Username can only contain letters, numbers, spaces, underscores and dashes',
         'string.min': 'Username must be at least 3 characters long',
         'string.max': 'Username cannot exceed 30 characters'
       }),
     avatarUrl: Joi.string()
       .allow('')
-      .pattern(/\.(jpg|jpeg|png|gif)$/i)
+      .uri({ scheme: ['http', 'https'] })
       .messages({
-        'string.pattern.base': 'Avatar URL must end with a valid image extension (.jpg, .jpeg, .png, or .gif)'
+        'string.uri': 'Avatar URL must be a valid http(s) URL'
       })
   })
 }

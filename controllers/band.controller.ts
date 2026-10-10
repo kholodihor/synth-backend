@@ -2,83 +2,79 @@ import { RequestHandler } from "express";
 import BandModel from "../models/band.model";
 import { RedisService } from "../utils/redis";
 
-interface BandQuery {
-  page?: string;
-  limit?: string;
-  query?: string;
-}
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const invalidateBandCaches = async (userId: string, bandId?: string) => {
+  const deletions = [
+    RedisService.delete(`user:${userId}:bands`),
+    RedisService.delete("bands:all"),
+    RedisService.deleteByPattern("bands:page:*"),
+  ];
+  if (bandId) {
+    deletions.push(RedisService.delete(`band:${bandId}`));
+  }
+  await Promise.all(deletions);
+};
 
 export const createBand: RequestHandler = async (req, res) => {
   const { title, description, location, image } = req.body;
   try {
-    const band = new BandModel({
+    const band = await new BandModel({
       title,
       description,
       location,
       image,
       user: req.userId,
-    });
+    }).save();
 
-    await band.save();
+    await invalidateBandCaches(req.userId);
 
-    // Invalidate caches
-    await Promise.all([
-      RedisService.delete(`user:${req.userId}:bands`),
-      RedisService.delete("bands:all")
-    ]);
-
-    res.status(200).json(band);
+    res.status(201).json(band);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Unable to create Band",
-    });
+    console.error("Create band error:", error);
+    res.status(500).json({ success: false, message: "Unable to create band" });
   }
 };
 
-export const getAllBands: RequestHandler<{}, {}, {}, BandQuery> = async (req, res) => {
+export const getAllBands: RequestHandler = async (req, res) => {
   try {
-    const page = parseInt(req.query.page as unknown as string) || 1;
-    const limit = parseInt(req.query.limit as unknown as string) || 6;
-    const query = req.query.query || "";
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 6;
+    const query = typeof req.query.query === "string" ? req.query.query : "";
 
-    // If no pagination is requested, return all bands
+    // No pagination requested -> return every band
     if (!req.query.page) {
       const cacheKey = "bands:all";
       const cachedBands = await RedisService.get(cacheKey);
-
       if (cachedBands) {
-        return res.json(JSON.parse(cachedBands));
+        return res.json(cachedBands);
       }
 
       const bands = await BandModel.find()
         .sort({ createdAt: "desc" })
         .populate("user");
 
-      // Cache for 5 minutes
-      await RedisService.setWithTTL(cacheKey, JSON.stringify(bands), 300);
-
+      await RedisService.setWithTTL(cacheKey, bands, 300);
       return res.json(bands);
     }
 
-    // Handle paginated request
-    const cacheKey = `bands:page:${String(page)}:limit:${limit}:query:${query}`;
+    const cacheKey = `bands:page:${page}:limit:${limit}:query:${query}`;
     const cachedResult = await RedisService.get(cacheKey);
-
     if (cachedResult) {
-      return res.json(JSON.parse(cachedResult));
+      return res.json(cachedResult);
     }
 
     const skip = (page - 1) * limit;
-    const regex = new RegExp(query, "i");
+    const regex = new RegExp(escapeRegex(query), "i");
+    const filter = { title: { $regex: regex } };
 
     const [bands, totalCount] = await Promise.all([
-      BandModel.find({ title: { $regex: regex } })
+      BandModel.find(filter)
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: "desc" })
         .populate("user"),
-      BandModel.countDocuments({ title: { $regex: regex } }),
+      BandModel.countDocuments(filter),
     ]);
 
     const result = {
@@ -89,15 +85,11 @@ export const getAllBands: RequestHandler<{}, {}, {}, BandQuery> = async (req, re
       limit,
     };
 
-    // Cache for 5 minutes
-    await RedisService.setWithTTL(cacheKey, JSON.stringify(result), 300);
-
+    await RedisService.setWithTTL(cacheKey, result, 300);
     res.json(result);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Failed to get bands",
-    });
+    console.error("Get bands error:", error);
+    res.status(500).json({ success: false, message: "Failed to get bands" });
   }
 };
 
@@ -105,27 +97,20 @@ export const getOneBand: RequestHandler = async (req, res) => {
   try {
     const cacheKey = `band:${req.params.id}`;
     const cachedBand = await RedisService.get(cacheKey);
-
     if (cachedBand) {
-      return res.json(JSON.parse(cachedBand));
+      return res.json(cachedBand);
     }
 
     const band = await BandModel.findById(req.params.id).populate("user");
     if (!band) {
-      return res.status(404).json({
-        message: "Band not found",
-      });
+      return res.status(404).json({ success: false, message: "Band not found" });
     }
 
-    // Cache for 10 minutes
-    await RedisService.setWithTTL(cacheKey, JSON.stringify(band), 600);
-
+    await RedisService.setWithTTL(cacheKey, band, 600);
     res.json(band);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Failed to get band",
-    });
+    console.error("Get band error:", error);
+    res.status(500).json({ success: false, message: "Failed to get band" });
   }
 };
 
@@ -133,86 +118,64 @@ export const getBandsByUser: RequestHandler = async (req, res) => {
   try {
     const cacheKey = `user:${req.userId}:bands`;
     const cachedBands = await RedisService.get(cacheKey);
-
     if (cachedBands) {
-      return res.json(JSON.parse(cachedBands));
+      return res.json(cachedBands);
     }
 
     const bands = await BandModel.find({ user: req.userId })
       .sort({ createdAt: "desc" })
       .populate("user");
 
-    // Cache for 5 minutes
-    await RedisService.setWithTTL(cacheKey, JSON.stringify(bands), 300);
-
+    await RedisService.setWithTTL(cacheKey, bands, 300);
     res.json(bands);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Failed to get bands",
-    });
+    console.error("Get user bands error:", error);
+    res.status(500).json({ success: false, message: "Failed to get bands" });
   }
 };
 
 export const editBand: RequestHandler = async (req, res) => {
   try {
-    const bandId = req.params.id;
+    const existing = await BandModel.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Band not found" });
+    }
+    if (existing.user.toString() !== req.userId) {
+      return res.status(403).json({ success: false, message: "You can only edit your own bands" });
+    }
+
     const { title, description, location, image } = req.body;
     const band = await BandModel.findByIdAndUpdate(
-      bandId,
-      {
-        title,
-        description,
-        location,
-        image,
-      },
+      req.params.id,
+      { $set: { title, description, location, image } },
       { new: true }
     );
 
-    if (!band) {
-      return res.status(404).json({
-        message: "Band not found",
-      });
-    }
+    await invalidateBandCaches(req.userId, req.params.id);
 
-    // Invalidate caches
-    await Promise.all([
-      RedisService.delete(`band:${req.params.id}`),
-      RedisService.delete(`user:${req.userId}:bands`),
-      RedisService.delete("bands:all")
-    ]);
-
-    res.status(200).json({ message: `Band ${title} Updated` });
+    res.json({ success: true, message: `Band ${band?.title ?? title} updated` });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Fail to edit Band",
-    });
+    console.error("Edit band error:", error);
+    res.status(500).json({ success: false, message: "Failed to edit band" });
   }
 };
 
 export const deleteBand: RequestHandler = async (req, res) => {
   try {
-    const bandId = req.params.id;
-    const band = await BandModel.findByIdAndDelete(bandId);
-    if (!band) {
-      return res.status(404).json({
-        message: "Band not found",
-      });
+    const existing = await BandModel.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Band not found" });
+    }
+    if (existing.user.toString() !== req.userId) {
+      return res.status(403).json({ success: false, message: "You can only delete your own bands" });
     }
 
-    // Invalidate caches
-    await Promise.all([
-      RedisService.delete(`band:${req.params.id}`),
-      RedisService.delete(`user:${req.userId}:bands`),
-      RedisService.delete("bands:all")
-    ]);
+    await BandModel.findByIdAndDelete(req.params.id);
+    await invalidateBandCaches(req.userId, req.params.id);
 
-    res.status(200).json("Band deleted");
+    res.json({ success: true, message: "Band deleted" });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Fail to delete Band",
-    });
+    console.error("Delete band error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete band" });
   }
 };

@@ -25,9 +25,9 @@ export const bandSchema = {
       }),
     image: Joi.string()
       .allow('')
-      .pattern(/\.(jpg|jpeg|png|webp)$/i)
+      .uri({ scheme: ['http', 'https'] })
       .messages({
-        'string.pattern.base': 'Image URL must end with a valid image extension (.jpg, .jpeg, .png, or .webp)'
+        'string.uri': 'Image must be a valid http(s) URL'
       })
   })
 };

@@ -8,7 +8,7 @@ const router = Router();
 router.get('/bands', BandController.getAllBands);
 router.get('/bands/:id', BandController.getOneBand);
 router.get('/user/bands', checkAuth, BandController.getBandsByUser);
-router.patch('/bands/:id', checkAuth, BandController.editBand);
+router.patch('/bands/:id', checkAuth, createBandValidation, BandController.editBand);
 router.delete('/bands/:id', checkAuth, BandController.deleteBand);
 router.post('/bands', checkAuth, createBandValidation, BandController.createBand);
 

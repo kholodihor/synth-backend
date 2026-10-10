@@ -1,6 +1,7 @@
-import express, { Express } from "express";
-import cors from "cors";
+import express, { Express, ErrorRequestHandler } from "express";
+import cors, { CorsOptions } from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
 import fileupload from "express-fileupload";
@@ -16,66 +17,85 @@ import { inngestHandler } from "./inngest/handler";
 
 dotenv.config();
 
+const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+if (!mongoUri) throw new Error("MONGODB_URI (or MONGO_URI) is not configured");
+if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not configured");
+
+const PORT = process.env.PORT || 4000;
+
 const app: Express = express();
 
-// Important: ensure you add JSON middleware to process incoming JSON POST payloads.
+app.use(helmet());
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 app.use(cookieParser());
 
-// Set up the "/api/inngest" routes with the serve handler
 app.use("/api/inngest", inngestHandler);
 
-// Configure CORS with specific options
-const allowedOrigins = ['http://localhost:5173', 'https://synth-frontend-phi.vercel.app'];
+// Comma-separated list, e.g. CORS_ORIGINS=http://localhost:5173,https://example.com
+const allowedOrigins = (
+  process.env.CORS_ORIGINS || "http://localhost:5173,https://synth-frontend-phi.vercel.app"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-const corsOptions = {
-  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error("The CORS policy for this site does not allow access from the specified Origin."));
   },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true,
-  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+  optionsSuccessStatus: 200, // Some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Enable preflight for all routes
+app.options("*", cors(corsOptions));
 
-app.use(fileupload({ useTempFiles: true }));
+app.use(fileupload({ useTempFiles: true, tempFileDir: "tmp/" }));
 app.use("/uploads", express.static("uploads"));
 
 // Health check / root route so Fly's proxy and browsers get a 200 OK
-app.get('/', (_req, res) => {
-  res.status(200).send('OK');
+app.get("/", (_req, res) => {
+  res.status(200).send("OK");
 });
 
-// Jobs API
 app.use("/api/jobs", jobsRoutes);
-
+app.use("/api/music", musicRoute);
 app.use("/api", userRoute);
 app.use("/api", bandRoute);
 app.use("/api", songRoute);
 app.use("/api", videoRoute);
 app.use("/api", uploadsRoute);
-app.use("/api/music", musicRoute);
+
+app.use((_req, res) => {
+  res.status(404).json({ success: false, message: "Not found" });
+});
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  console.error(err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    success: false,
+    message: status === 500 ? "Internal server error" : err.message,
+  });
+};
+app.use(errorHandler);
 
 mongoose.set("strictQuery", false);
-// Support both env var names for Mongo connection
-const mongoUri = (process.env.MONGODB_URI || process.env.MONGO_URI) as string
 
 mongoose
-  .connect(mongoUri, {})
+  .connect(mongoUri)
   .then(() =>
-    app.listen(process.env.PORT || 4000, () => {
-      console.log(`Server and Database are OK. Server running on port ${process.env.PORT || 4000}`);
+    app.listen(PORT, () => {
+      console.log(`Server and Database are OK. Server running on port ${PORT}`);
     })
   )
-  .catch((err) => console.log("DB error", err));
+  .catch((err) => {
+    console.error("DB error", err);
+    process.exit(1);
+  });

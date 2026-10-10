@@ -1,21 +1,18 @@
-import createHttpError from 'http-errors';
-import { NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import Joi from 'joi';
 
-const validator = async (
-  schemaName: Joi.ObjectSchema,
-  body: object,
+const validator = (
+  schema: Joi.ObjectSchema,
+  req: Request,
+  res: Response,
   next: NextFunction
 ) => {
-  const value = schemaName.validate(body);
-
-  try {
-    value.error
-      ? next(createHttpError(422, value.error.details[0].message))
-      : next();
-  } catch (error) {
-    console.log(error);
+  const { error } = schema.validate(req.body);
+  if (error) {
+    res.status(422).json({ success: false, message: error.details[0].message });
+    return;
   }
+  next();
 };
 
 export default validator;

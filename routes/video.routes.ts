@@ -5,10 +5,9 @@ import { addVideoValidation } from '../validations/VideoValidation/videoValidati
 
 const router = Router();
 
-router.post('/video',checkAuth, addVideoValidation, VideoController.addVideo);
+router.post('/video', checkAuth, addVideoValidation, VideoController.addVideo);
 router.get('/video', VideoController.getAllVideos);
 router.get('/user/video', checkAuth, VideoController.getVideosByUser);
 router.delete('/video/:id', checkAuth, VideoController.deleteVideo);
-
 
 export default router;

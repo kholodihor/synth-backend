@@ -7,125 +7,103 @@ const ENDPOINTS = {
   fromDescription: process.env.MODAL_ENDPOINT_GENERATE_FROM_DESCRIPTION,
   withLyrics: process.env.MODAL_ENDPOINT_GENERATE_WITH_LYRICS,
   generate: process.env.MODAL_ENDPOINT_GENERATE,
-};
+} as const;
+
+const JOB_TTL = 60 * 60; // 1 hour
 
 export type GenerateMusicEvent = {
   name: "app/generate.music";
   data: {
     jobId: string;
-    kind: "withDescribedLyrics" | "fromDescription" | "withLyrics" | "generate";
-    payload: any;
+    kind: keyof typeof ENDPOINTS;
+    payload: Record<string, unknown>;
     userId?: string;
   };
 };
 
+const buildModalPayload = (kind: GenerateMusicEvent["data"]["kind"], payload: Record<string, any>) => {
+  const base = {
+    audio_duration: payload.audio_duration || 180.0,
+    seed: payload.seed || -1,
+    guidance_scale: payload.guidance_scale || 15.0,
+    infer_step: payload.infer_step || 60,
+    instrumental: payload.instrumental || false,
+  };
+
+  switch (kind) {
+    case "fromDescription":
+      return { ...base, full_described_song: payload.description || payload.full_described_song || "" };
+    case "withLyrics":
+      return { ...base, prompt: payload.prompt || "", lyrics: payload.lyrics || "" };
+    case "withDescribedLyrics":
+      return {
+        ...base,
+        prompt: payload.prompt || "",
+        described_lyrics: payload.described_lyrics || payload.description || "",
+      };
+    case "generate":
+      return {};
+    default:
+      return payload;
+  }
+};
+
 export const generateMusic = inngest.createFunction(
-  { 
+  {
     id: "generate-music",
-    concurrency: { limit: 10 }
+    concurrency: { limit: 10 },
   },
   { event: "app/generate.music" },
-  async ({ event, step }: any) => {
-    const { jobId, kind, payload } = (event as any).data as GenerateMusicEvent["data"];
-
-    const redis = RedisService.getInstance();
+  async ({ event, step }) => {
+    const { jobId, kind, payload } = event.data as GenerateMusicEvent["data"];
     const key = `job:${jobId}`;
 
-    // Immediately set processing status and return quickly
     await step.run("set-processing-status", async () => {
-      await redis.set(key, JSON.stringify({ status: "processing" }), "EX", 60 * 60);
+      await RedisService.setWithTTL(key, { status: "processing" }, JOB_TTL);
       console.log("[inngest] generateMusic queued", { jobId, kind });
       return { queued: true };
     });
 
-    const endpoint = (ENDPOINTS as any)[kind];
+    const endpoint = ENDPOINTS[kind];
     if (!endpoint) {
       await step.run("set-error-status", async () => {
-        await redis.set(key, JSON.stringify({ status: "error", error: "Modal endpoint not configured" }), "EX", 60 * 60);
+        await RedisService.setWithTTL(
+          key,
+          { status: "error", error: "Modal endpoint not configured" },
+          JOB_TTL
+        );
       });
       return { ok: false, jobId, error: "Modal endpoint not configured" };
     }
 
-    // Transform payload to match Modal API expectations
-    let modalPayload = {};
-    
-    switch (kind) {
-      case "fromDescription":
-        modalPayload = {
-          full_described_song: payload.description || payload.full_described_song || "",
-          audio_duration: payload.audio_duration || 180.0,
-          seed: payload.seed || -1,
-          guidance_scale: payload.guidance_scale || 15.0,
-          infer_step: payload.infer_step || 60,
-          instrumental: payload.instrumental || false
-        };
-        break;
-        
-      case "withLyrics":
-        modalPayload = {
-          prompt: payload.prompt || "",
-          lyrics: payload.lyrics || "",
-          audio_duration: payload.audio_duration || 180.0,
-          seed: payload.seed || -1,
-          guidance_scale: payload.guidance_scale || 15.0,
-          infer_step: payload.infer_step || 60,
-          instrumental: payload.instrumental || false
-        };
-        break;
-        
-      case "withDescribedLyrics":
-        modalPayload = {
-          prompt: payload.prompt || "",
-          described_lyrics: payload.described_lyrics || payload.description || "",
-          audio_duration: payload.audio_duration || 180.0,
-          seed: payload.seed || -1,
-          guidance_scale: payload.guidance_scale || 15.0,
-          infer_step: payload.infer_step || 60,
-          instrumental: payload.instrumental || false
-        };
-        break;
-        
-      case "generate":
-        modalPayload = {}; // No payload needed for basic generate
-        break;
-        
-      default:
-        modalPayload = payload;
-    }
+    const modalPayload = buildModalPayload(kind, payload);
 
-    // Schedule the Modal API call as a separate background step that can take time
+    // Schedule the Modal API call as a fire-and-forget background task;
+    // the job result is written to Redis for the status endpoint to read.
     await step.run("schedule-modal-processing", async () => {
-      // This step just initiates the background processing
       console.log("[inngest] Scheduling Modal API call", { jobId, endpoint, kind });
-      
-      // Fire and forget - don't wait for the response
+
       setTimeout(async () => {
         try {
-          console.log("[inngest] Calling Modal API", { jobId, endpoint, kind, modalPayload });
-          const res = await axios.post(endpoint, modalPayload, { 
+          const res = await axios.post(endpoint, modalPayload, {
             timeout: 15 * 60 * 1000,
-            headers: {
-              'Content-Type': 'application/json'
-            }
+            headers: { "Content-Type": "application/json" },
           });
-          
-          await redis.set(key, JSON.stringify({ status: "done", result: res.data }), "EX", 60 * 60);
+          await RedisService.setWithTTL(key, { status: "done", result: res.data }, JOB_TTL);
           console.log("[inngest] Modal API completed successfully", { jobId });
         } catch (error: any) {
-          await redis.set(
+          await RedisService.setWithTTL(
             key,
-            JSON.stringify({ status: "error", error: error?.message ?? "unknown" }),
-            "EX",
-            60 * 60
+            { status: "error", error: error?.message ?? "unknown" },
+            JOB_TTL
           );
           console.error("[inngest] Modal API failed", { jobId, error: error.message });
         }
-      }, 100); // Start processing after 100ms
-      
+      }, 100);
+
       return { scheduled: true };
     });
 
-    // Return immediately with processing status
     return { ok: true, jobId, status: "processing" };
   }
 );
